@@ -13,10 +13,13 @@ reach - isnt implemented in the compiler
 return - almost finished
 \
 functions: \
-func <name>(parameter <type name>) [<return types, currently it is only capeble of returning one type>]{ 
+func |name|(parameter <type name>) [<return types, currently it is only capeble of returning one type>]{ 
 }
 \
 return: \
-return <ONE PERAMETER IS CURRENTLY AVAIBLE>
+return |ONE PERAMETER IS CURRENTLY AVAIBLE|
+\
+var / const: \
+var/const name type = |value|
 
 
