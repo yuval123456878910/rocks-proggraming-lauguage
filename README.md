@@ -17,5 +17,6 @@ func <name>(parameter <type name>) [<return types, currently it is only capeble 
 }
 \
 return: \
+return <ONE PERAMETER IS CURRENTLY AVAIBLE>
 
 
