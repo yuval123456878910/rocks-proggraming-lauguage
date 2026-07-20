@@ -42,9 +42,11 @@ type Ident struct {
 	IsConst bool
 }
 
-func CalculateOporator(CalData any, indentMap map[string]Ident) any {
+func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser.Function) any {
 	var Value any
-	if ReturnType(CalData) == ReturnType(lexer.Token{}) {
+	CalType := ReturnType(CalData)
+	switch CalType {
+	case ReturnType(lexer.Token{}):
 		switch CalData.(lexer.Token).Type {
 		case lexer.LITERAL:
 			value, err := strconv.ParseFloat(CalData.(lexer.Token).Value, 64)
@@ -64,6 +66,21 @@ func CalculateOporator(CalData any, indentMap map[string]Ident) any {
 			TempIdent := CalData.(lexer.Token)
 			return indentMap[TempIdent.Value].Value
 		}
+	case ReturnType(parser.CallFunction{}):
+		TempCall := CalData.(parser.CallFunction)
+
+		CallFunc, ok := funcMap[TempCall.Name]
+		if !ok {
+			fmt.Println("Error, coudnt find the func:", TempCall.Name)
+		}
+		CallVarMap := map[string]Ident{}
+		for idx, ident := range TempCall.ParimitersInput {
+			CallVarMap[CallFunc.Perameters[idx].Name] = Ident{Value: Evaluate(ident, indentMap, funcMap), Name: CallFunc.Perameters[idx].Name, Type: CallFunc.Perameters[idx].Type, IsConst: false}
+		}
+		NewEnv := Environment{ParseDate: CallFunc.Body, VariableMap: CallVarMap, FuncMap: funcMap}
+		NewEnv.Interpeter()
+		return NewEnv.Output
+
 	}
 	op, ok := CalData.(parser.Oporation)
 	if !ok {
@@ -73,8 +90,8 @@ func CalculateOporator(CalData any, indentMap map[string]Ident) any {
 	}
 	switch op.Op {
 	case "+":
-		LeftSide := CalculateOporator(op.Left, indentMap)
-		RightSide := CalculateOporator(op.Right, indentMap)
+		LeftSide := Evaluate(op.Left, indentMap, funcMap)
+		RightSide := Evaluate(op.Right, indentMap, funcMap)
 		if !slices.Contains(ApproveSideToOp, ReturnType(LeftSide)) && !slices.Contains(ApproveSideToOp, ReturnType(RightSide)) {
 			fmt.Println("Cant do None type!", ReturnType(LeftSide), ReturnType(RightSide))
 		}
@@ -110,8 +127,8 @@ func CalculateOporator(CalData any, indentMap map[string]Ident) any {
 			return left + right
 		}
 	case "-":
-		LeftSide := CalculateOporator(op.Left, indentMap)
-		RightSide := CalculateOporator(op.Right, indentMap)
+		LeftSide := Evaluate(op.Left, indentMap, funcMap)
+		RightSide := Evaluate(op.Right, indentMap, funcMap)
 		if !slices.Contains(ApproveSideToOp, ReturnType(LeftSide)) && !slices.Contains(ApproveSideToOp, ReturnType(RightSide)) {
 			fmt.Println("Cant do None type!", ReturnType(LeftSide), ReturnType(RightSide))
 		}
@@ -161,9 +178,11 @@ func (Env *Environment) Interpeter() {
 			TempEnv.Interpeter()
 			NewIdent := Ident{Value: TempEnv.Output, Name: IdentTemp.Name, Type: IdentTemp.Type, IsConst: IdentTemp.IsConst}
 			Env.VariableMap[NewIdent.Name] = NewIdent
+
 		case OporationType:
 			OporationTemp := ParseToken.(parser.Oporation)
-			Env.Output = CalculateOporator(OporationTemp, Env.VariableMap)
+			Env.Output = Evaluate(OporationTemp, Env.VariableMap, Env.FuncMap)
+
 		case ReturnType(lexer.Token{}):
 			token := ParseToken.(lexer.Token)
 			if token.Type == lexer.IDENTIFIER {
@@ -175,7 +194,7 @@ func (Env *Environment) Interpeter() {
 				Env.Output = val.Value
 
 			} else {
-				Env.Output = CalculateOporator(ParseToken, Env.VariableMap)
+				Env.Output = Evaluate(ParseToken, Env.VariableMap, Env.FuncMap)
 			}
 		case ReturnType(parser.CallFunction{}):
 			TempCall := ParseToken.(parser.CallFunction)
@@ -186,14 +205,15 @@ func (Env *Environment) Interpeter() {
 			}
 			CallVarMap := map[string]Ident{}
 			for idx, ident := range TempCall.ParimitersInput {
-				CallVarMap[CallFunc.Perameters[idx].Name] = Ident{Value: CalculateOporator(ident, Env.VariableMap), Name: CallFunc.Perameters[idx].Name, Type: CallFunc.Perameters[idx].Type, IsConst: false}
+				CallVarMap[CallFunc.Perameters[idx].Name] = Ident{Value: Evaluate(ident, Env.VariableMap, Env.FuncMap), Name: CallFunc.Perameters[idx].Name, Type: CallFunc.Perameters[idx].Type, IsConst: false}
 			}
 			NewEnv := Environment{ParseDate: CallFunc.Body, VariableMap: CallVarMap, FuncMap: Env.FuncMap}
 			NewEnv.Interpeter()
 			Env.Output = NewEnv.Output
+
 		case ReturnType(parser.Return{}):
 			TempReturn := ParseToken.(parser.Return)
-			Env.Output = CalculateOporator(TempReturn.Expr, Env.VariableMap)
+			Env.Output = Evaluate(TempReturn.Expr, Env.VariableMap, Env.FuncMap)
 
 		}
 	}

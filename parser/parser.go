@@ -71,7 +71,7 @@ type Return struct {
 
 func SearchEnd(Tokens []lexer.Token, pos int) int {
 	End := pos
-	for End < len(Tokens) && Tokens[End].Type != lexer.NEWLINE {
+	for End+1 < len(Tokens) && Tokens[End].Type != lexer.NEWLINE {
 		End++
 	}
 	return End
@@ -101,7 +101,6 @@ func Parse(Tokens []lexer.Token) []any {
 				if token.Type == lexer.PUNCTUATOR && token.Value == "," && !InPrunctiotion {
 
 					TempExpress := Expretion{Tokens: CurrentArg}
-					fmt.Println(TempExpress)
 					Call.ParimitersInput = append(Call.ParimitersInput, ParseBinding(&TempExpress, 0))
 					CurrentArg = []lexer.Token{}
 					continue
@@ -193,6 +192,7 @@ func Parse(Tokens []lexer.Token) []any {
 				continue
 			}
 			EndOfLine := SearchEnd(Tokens, pos)
+
 			NewExpretion := Expretion{Tokens: Tokens[pos+4 : EndOfLine+1]}
 			NewIdentefire.IsConst = Tokens[pos].Value == "const"
 			AST := ParseBinding(&NewExpretion, 0)
@@ -299,13 +299,11 @@ type List struct {
 // error in the ParseBinding has to start at 2
 func ParseBinding(Express *Expretion, min_bind float32) any {
 	Leftside := any(Express.Tokens[Express.Pos])
-	fmt.Println(Express.Tokens)
 	if Leftside.(lexer.Token).Type == lexer.IDENTIFIER && Express.Pos+1 < len(Express.Tokens) && Express.Tokens[Express.Pos+1].Value == "(" {
 		End, err := FindClose(Express.Tokens, Express.Pos+2, "(", ")")
 		if err != nil {
 			fmt.Println("Error: End of the call funcion wasnt found!")
 		}
-		fmt.Println()
 		Call := CallFunction{Name: Express.Tokens[Express.Pos].Value}
 		depth := 0
 		var CurrentArg []lexer.Token

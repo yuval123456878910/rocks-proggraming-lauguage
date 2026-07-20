@@ -2,4 +2,4 @@ func add(int a int b) []{
     return a+b
 }
 
-var is int = add(1,2)
+var is int = add(add(1,2),2)
