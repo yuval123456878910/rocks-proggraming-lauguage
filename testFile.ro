@@ -1,5 +1,2 @@
-func add(int a int b) []{
-    return a+b
-}
-
-var is int = add(add(1,2),2)
+var a int = 50
+a = 1

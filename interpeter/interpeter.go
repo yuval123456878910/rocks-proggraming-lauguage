@@ -22,6 +22,7 @@ var (
 	LiteralsLisr    []string = []string{lexer.LITERAL, lexer.CHAR, lexer.STRING}
 	ApproveSideToOp []string = []string{ReturnType(0), ReturnType(0.0), ReturnType(""), ReturnType(byte(0))}
 	IntType         string   = ReturnType(0)
+	RefactType      string   = ReturnType(parser.RefactIdent{})
 )
 
 type Environment struct {
@@ -202,6 +203,7 @@ func (Env *Environment) Interpeter() {
 			CallFunc, ok := Env.FuncMap[TempCall.Name]
 			if !ok {
 				fmt.Println("Error, coudnt find the func:", TempCall.Name)
+				os.Exit(1)
 			}
 			CallVarMap := map[string]Ident{}
 			for idx, ident := range TempCall.ParimitersInput {
@@ -214,7 +216,23 @@ func (Env *Environment) Interpeter() {
 		case ReturnType(parser.Return{}):
 			TempReturn := ParseToken.(parser.Return)
 			Env.Output = Evaluate(TempReturn.Expr, Env.VariableMap, Env.FuncMap)
-
+		case RefactType:
+			// dont mess: Env.VariableMap[NewIdent.Name] = NewIdent
+			TempRefact := ParseToken.(parser.RefactIdent)
+			IdentGet, ok := Env.VariableMap[TempRefact.Name]
+			if !ok {
+				fmt.Printf("Coudnt find a veruble named: %s\n", TempRefact.Name)
+				os.Exit(1)
+			}
+			if IdentGet.IsConst {
+				fmt.Println("Cant edit a const veruble: ", TempRefact.Name)
+				os.Exit(1)
+			}
+			NewEnv := Environment{VariableMap: Env.VariableMap, FuncMap: Env.FuncMap, ParseDate: []any{TempRefact.Content}}
+			NewEnv.Interpeter()
+			var tempIdent Ident = Env.VariableMap[IdentGet.Name]
+			tempIdent.Value = NewEnv.Output
+			Env.VariableMap[IdentGet.Name] = tempIdent
 		}
 	}
 

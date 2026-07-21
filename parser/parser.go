@@ -32,6 +32,11 @@ type NewIdent struct {
 	Content any
 }
 
+type RefactIdent struct {
+	Name    string
+	Content any
+}
+
 type Parser struct {
 	Input  []lexer.Token
 	Output []any
@@ -219,7 +224,18 @@ func Parse(Tokens []lexer.Token) []any {
 			NewReturn := Return{Expr: ParseBinding(&NewExpretion, 0)}
 			Global_Result = append(Global_Result, NewReturn)
 			pos = EndLine
-
+		case "=":
+			if Tokens[pos].Type != lexer.OPERATOR {
+				continue
+			}
+			fmt.Println("Equals")
+			name := Tokens[pos-1]
+			end := SearchEnd(Tokens, pos)
+			NewEnv := Expretion{Tokens: Tokens[pos+1 : end]}
+			contect := ParseBinding(&NewEnv, 0)
+			NewRefactIdent := RefactIdent{Name: name.Value, Content: contect}
+			Global_Result = append(Global_Result, NewRefactIdent)
+			pos = end
 		}
 
 	}
