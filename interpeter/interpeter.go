@@ -1,7 +1,7 @@
 package interpeter
 
 /* Add:
-Add sepport to nested functions: add(add(1,2),1)
+add two set
 */
 
 import (
@@ -23,6 +23,7 @@ var (
 	ApproveSideToOp []string = []string{ReturnType(0), ReturnType(0.0), ReturnType(""), ReturnType(byte(0))}
 	IntType         string   = ReturnType(0)
 	RefactType      string   = ReturnType(parser.RefactIdent{})
+	HouseType       string   = ReturnType(parser.House{})
 )
 
 type Environment struct {
@@ -43,7 +44,7 @@ type Ident struct {
 	IsConst bool
 }
 
-func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser.Function) any {
+func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser.Function) (any, string) {
 	var Value any
 	CalType := ReturnType(CalData)
 	switch CalType {
@@ -56,16 +57,16 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 				os.Exit(1)
 			}
 			if math.Mod(value, 1) == 0 {
-				return int(value)
+				return int(value), "int"
 			}
-			return value
+			return value, "float"
 		case lexer.STRING:
-			return CalData.(lexer.Token).Value
+			return CalData.(lexer.Token).Value, "string"
 		case lexer.CHAR:
-			return byte(CalData.(lexer.Token).Value[0])
+			return byte(CalData.(lexer.Token).Value[0]), "char"
 		case lexer.IDENTIFIER:
 			TempIdent := CalData.(lexer.Token)
-			return indentMap[TempIdent.Value].Value
+			return indentMap[TempIdent.Value].Value, indentMap[TempIdent.Value].Type
 		}
 	case ReturnType(parser.CallFunction{}):
 		TempCall := CalData.(parser.CallFunction)
@@ -76,11 +77,13 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 		}
 		CallVarMap := map[string]Ident{}
 		for idx, ident := range TempCall.ParimitersInput {
-			CallVarMap[CallFunc.Perameters[idx].Name] = Ident{Value: Evaluate(ident, indentMap, funcMap), Name: CallFunc.Perameters[idx].Name, Type: CallFunc.Perameters[idx].Type, IsConst: false}
+			Cal, _ := Evaluate(ident, indentMap, funcMap)
+			CallVarMap[CallFunc.Perameters[idx].Name] = Ident{Value: Cal, Name: CallFunc.Perameters[idx].Name, Type: CallFunc.Perameters[idx].Type, IsConst: false}
 		}
 		NewEnv := Environment{ParseDate: CallFunc.Body, VariableMap: CallVarMap, FuncMap: funcMap}
 		NewEnv.Interpeter()
-		return NewEnv.Output
+
+		return NewEnv.Output, CallFunc.Returns[0].Type
 
 	}
 	op, ok := CalData.(parser.Oporation)
@@ -91,8 +94,8 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 	}
 	switch op.Op {
 	case "+":
-		LeftSide := Evaluate(op.Left, indentMap, funcMap)
-		RightSide := Evaluate(op.Right, indentMap, funcMap)
+		LeftSide, _ := Evaluate(op.Left, indentMap, funcMap)
+		RightSide, _ := Evaluate(op.Right, indentMap, funcMap)
 		if !slices.Contains(ApproveSideToOp, ReturnType(LeftSide)) && !slices.Contains(ApproveSideToOp, ReturnType(RightSide)) {
 			fmt.Println("Cant do None type!", ReturnType(LeftSide), ReturnType(RightSide))
 		}
@@ -101,21 +104,21 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 		case int:
 			right, ok := RightSide.(int)
 			if ok {
-				return left + right
+				return left + right, "int"
 			}
 			right2, ok2 := RightSide.(float64)
 			if ok2 {
-				return int(right2) + left
+				return int(right2) + left, "int"
 			}
 
 		case float64:
 			right, ok := RightSide.(int)
 			if ok {
-				return (left) + float64(right)
+				return (left) + float64(right), "float"
 			}
 			right2, ok2 := RightSide.(float64)
 			if ok2 {
-				return right2 + left
+				return right2 + left, "float"
 			}
 			fmt.Println("Cant add two incompadeple types!")
 			os.Exit(1)
@@ -125,11 +128,11 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 			if !ok {
 				fmt.Println("Cant add to a string, a none string", RightSide)
 			}
-			return left + right
+			return left + right, "string"
 		}
 	case "-":
-		LeftSide := Evaluate(op.Left, indentMap, funcMap)
-		RightSide := Evaluate(op.Right, indentMap, funcMap)
+		LeftSide, _ := Evaluate(op.Left, indentMap, funcMap)
+		RightSide, _ := Evaluate(op.Right, indentMap, funcMap)
 		if !slices.Contains(ApproveSideToOp, ReturnType(LeftSide)) && !slices.Contains(ApproveSideToOp, ReturnType(RightSide)) {
 			fmt.Println("Cant do None type!", ReturnType(LeftSide), ReturnType(RightSide))
 		}
@@ -137,27 +140,27 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 		case int:
 			right, ok := RightSide.(int)
 			if ok {
-				return left - right
+				return left - right, "int"
 			}
 			right2, ok2 := RightSide.(float64)
 			if ok2 {
-				return left - int(right2)
+				return left - int(right2), "int"
 			}
 		case float64:
 			right, ok := RightSide.(int)
 			if ok {
-				return (left) - float64(right)
+				return (left) - float64(right), "float"
 			}
 			right2, ok2 := RightSide.(float64)
 			if ok2 {
-				return left - right2
+				return left - right2, "float"
 			}
 			fmt.Println("Cant add two incompadeple types!")
 			os.Exit(1)
 
 		}
 	}
-	return Value
+	return Value, "null"
 }
 
 func (Env *Environment) Interpeter() {
@@ -182,7 +185,8 @@ func (Env *Environment) Interpeter() {
 
 		case OporationType:
 			OporationTemp := ParseToken.(parser.Oporation)
-			Env.Output = Evaluate(OporationTemp, Env.VariableMap, Env.FuncMap)
+			t, _ := Evaluate(OporationTemp, Env.VariableMap, Env.FuncMap)
+			Env.Output = t
 
 		case ReturnType(lexer.Token{}):
 			token := ParseToken.(lexer.Token)
@@ -195,7 +199,8 @@ func (Env *Environment) Interpeter() {
 				Env.Output = val.Value
 
 			} else {
-				Env.Output = Evaluate(ParseToken, Env.VariableMap, Env.FuncMap)
+				t, _ := Evaluate(ParseToken, Env.VariableMap, Env.FuncMap)
+				Env.Output = t
 			}
 		case ReturnType(parser.CallFunction{}):
 			TempCall := ParseToken.(parser.CallFunction)
@@ -207,7 +212,8 @@ func (Env *Environment) Interpeter() {
 			}
 			CallVarMap := map[string]Ident{}
 			for idx, ident := range TempCall.ParimitersInput {
-				CallVarMap[CallFunc.Perameters[idx].Name] = Ident{Value: Evaluate(ident, Env.VariableMap, Env.FuncMap), Name: CallFunc.Perameters[idx].Name, Type: CallFunc.Perameters[idx].Type, IsConst: false}
+				callEval, _ := Evaluate(ident, Env.VariableMap, Env.FuncMap)
+				CallVarMap[CallFunc.Perameters[idx].Name] = Ident{Value: callEval, Name: CallFunc.Perameters[idx].Name, Type: CallFunc.Perameters[idx].Type, IsConst: false}
 			}
 			NewEnv := Environment{ParseDate: CallFunc.Body, VariableMap: CallVarMap, FuncMap: Env.FuncMap}
 			NewEnv.Interpeter()
@@ -215,7 +221,8 @@ func (Env *Environment) Interpeter() {
 
 		case ReturnType(parser.Return{}):
 			TempReturn := ParseToken.(parser.Return)
-			Env.Output = Evaluate(TempReturn.Expr, Env.VariableMap, Env.FuncMap)
+			ReturnEval, _ := Evaluate(TempReturn.Expr, Env.VariableMap, Env.FuncMap)
+			Env.Output = ReturnEval
 		case RefactType:
 			// dont mess: Env.VariableMap[NewIdent.Name] = NewIdent
 			TempRefact := ParseToken.(parser.RefactIdent)
@@ -228,11 +235,17 @@ func (Env *Environment) Interpeter() {
 				fmt.Println("Cant edit a const veruble: ", TempRefact.Name)
 				os.Exit(1)
 			}
-			NewEnv := Environment{VariableMap: Env.VariableMap, FuncMap: Env.FuncMap, ParseDate: []any{TempRefact.Content}}
-			NewEnv.Interpeter()
+			NewEnv, Type := Evaluate(TempRefact.Content, Env.VariableMap, Env.FuncMap)
+
 			var tempIdent Ident = Env.VariableMap[IdentGet.Name]
-			tempIdent.Value = NewEnv.Output
+			if Type != tempIdent.Type {
+				fmt.Println("Cant change a val with incopadble type!")
+				os.Exit(1)
+			}
+			tempIdent.Value = NewEnv
 			Env.VariableMap[IdentGet.Name] = tempIdent
+		case HouseType:
+			
 		}
 	}
 

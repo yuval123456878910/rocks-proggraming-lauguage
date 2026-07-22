@@ -74,6 +74,11 @@ type Return struct {
 	Expr any
 }
 
+type House struct {
+	Names    []string
+	Contents []any
+}
+
 func SearchEnd(Tokens []lexer.Token, pos int) int {
 	End := pos
 	for End+1 < len(Tokens) && Tokens[End].Type != lexer.NEWLINE {
@@ -186,6 +191,7 @@ func Parse(Tokens []lexer.Token) []any {
 				return []any{}
 			}
 			NewIdentefire.Name = NameToken.Value
+
 			TypeToken := Tokens[pos+2]
 			if !slices.Contains(aviableTypes, TypeToken.Value) {
 				fmt.Printf("'%s' isn't a type in decleration of value '%s'\n", TypeToken.Value, NameToken.Value)
@@ -224,6 +230,51 @@ func Parse(Tokens []lexer.Token) []any {
 			NewReturn := Return{Expr: ParseBinding(&NewExpretion, 0)}
 			Global_Result = append(Global_Result, NewReturn)
 			pos = EndLine
+		case "house":
+			house := House{}
+			Vars := []string{}
+			TempValue := ""
+			EndLine := SearchEnd(Tokens, pos)
+			for Tokens[pos].Value != "=" {
+				if Tokens[pos].Value == "," && Tokens[pos].Type == lexer.PUNCTUATOR {
+					Vars = append(Vars, TempValue)
+					TempValue = ""
+					pos++
+					continue
+				}
+				TempValue = Tokens[pos].Value
+				pos++
+			}
+			if TempValue != "" {
+				Vars = append(Vars, TempValue)
+			}
+
+			ContentSlice := [][]lexer.Token{}
+			TempContext := []lexer.Token{}
+			for _, value := range Tokens[pos+1 : EndLine+1] {
+				if value.Value == "," {
+					ContentSlice = append(ContentSlice, TempContext)
+					fmt.Println("APPENDED")
+					pos++
+					TempContext = []lexer.Token{}
+					continue
+				}
+
+				TempContext = append(TempContext, value)
+				fmt.Println(TempContext)
+			}
+
+			ContentSlice = append(ContentSlice, TempContext)
+			TempContextBinding := []any{}
+			for _, context := range ContentSlice {
+				NewExpr := Expretion{Tokens: context}
+				TempContextBinding = append(TempContextBinding, ParseBinding(&NewExpr, 0))
+			}
+			house.Contents = TempContextBinding
+			house.Names = Vars
+			pos = EndLine
+			Global_Result = append(Global_Result, house)
+
 		case "=":
 			if Tokens[pos].Type != lexer.OPERATOR {
 				continue

@@ -28,7 +28,7 @@ const (
 	NEWLINE    = "newline"
 )
 
-var Keywords []string = []string{"func", "import", "int", "string", "float", "var", "const", "list", "dict", "bool", "if", "else", "elseif", "break", "continue", "thread", "return", "maybe", "char"}
+var Keywords []string = []string{"func", "import", "int", "string", "float", "var", "const", "list", "dict", "bool", "if", "else", "elseif", "break", "continue", "thread", "return", "maybe", "char", "house"}
 var Operators []byte = []byte{'+', '-', '/', '*', '='}
 var LegalOperators []string = []string{"+", "-", "/", "=", "+=", "-=", "*=", "/="}
 var Punctuators []byte = []byte{'(', ')', '[', ']', '{', '}', ':', ',', '.'}
