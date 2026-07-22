@@ -17,7 +17,7 @@ func main() {
 
 	L1.CorrectBackSlash()
 	L1.LexerAll()
-
+	L1.AddEOF()
 	parser := parser.Parser{}
 	parser.Input = L1.Tokens
 	parser.Parsing()

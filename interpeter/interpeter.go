@@ -12,6 +12,7 @@ import (
 	parser "rocks/parser"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -30,7 +31,7 @@ type Environment struct {
 	FuncMap     map[string]parser.Function
 	VariableMap map[string]Ident
 	ParseDate   []any
-	Output      any
+	Output      []any
 }
 
 func ReturnType(obj any) string {
@@ -52,11 +53,12 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 		switch CalData.(lexer.Token).Type {
 		case lexer.LITERAL:
 			value, err := strconv.ParseFloat(CalData.(lexer.Token).Value, 64)
+			print(value, "\n")
 			if err != nil {
 				fmt.Printf("Error converting string to float. Error: %s", err.Error())
 				os.Exit(1)
 			}
-			if math.Mod(value, 1) == 0 {
+			if math.Mod(value, 1) == 0 && !strings.Contains(CalData.(lexer.Token).Value, ".") {
 				return int(value), "int"
 			}
 			return value, "float"
@@ -83,7 +85,7 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 		NewEnv := Environment{ParseDate: CallFunc.Body, VariableMap: CallVarMap, FuncMap: funcMap}
 		NewEnv.Interpeter()
 
-		return NewEnv.Output, CallFunc.Returns[0].Type
+		return NewEnv.Output[0], CallFunc.Returns[0].Type
 
 	}
 	op, ok := CalData.(parser.Oporation)
@@ -180,13 +182,13 @@ func (Env *Environment) Interpeter() {
 			IdentTemp := ParseToken.(parser.NewIdent)
 			TempEnv := Environment{VariableMap: Env.VariableMap, FuncMap: Env.FuncMap, ParseDate: []any{IdentTemp.Content}}
 			TempEnv.Interpeter()
-			NewIdent := Ident{Value: TempEnv.Output, Name: IdentTemp.Name, Type: IdentTemp.Type, IsConst: IdentTemp.IsConst}
+			NewIdent := Ident{Value: TempEnv.Output[0], Name: IdentTemp.Name, Type: IdentTemp.Type, IsConst: IdentTemp.IsConst}
 			Env.VariableMap[NewIdent.Name] = NewIdent
 
 		case OporationType:
 			OporationTemp := ParseToken.(parser.Oporation)
 			t, _ := Evaluate(OporationTemp, Env.VariableMap, Env.FuncMap)
-			Env.Output = t
+			Env.Output = append(Env.Output, t)
 
 		case ReturnType(lexer.Token{}):
 			token := ParseToken.(lexer.Token)
@@ -196,11 +198,11 @@ func (Env *Environment) Interpeter() {
 					fmt.Println("Couldn't find veruble names:", token.Value)
 					os.Exit(1)
 				}
-				Env.Output = val.Value
+				Env.Output = append(Env.Output, val.Value)
 
 			} else {
 				t, _ := Evaluate(ParseToken, Env.VariableMap, Env.FuncMap)
-				Env.Output = t
+				Env.Output = append(Env.Output, t)
 			}
 		case ReturnType(parser.CallFunction{}):
 			TempCall := ParseToken.(parser.CallFunction)
@@ -222,7 +224,7 @@ func (Env *Environment) Interpeter() {
 		case ReturnType(parser.Return{}):
 			TempReturn := ParseToken.(parser.Return)
 			ReturnEval, _ := Evaluate(TempReturn.Expr, Env.VariableMap, Env.FuncMap)
-			Env.Output = ReturnEval
+			Env.Output = append(Env.Output, ReturnEval)
 		case RefactType:
 			// dont mess: Env.VariableMap[NewIdent.Name] = NewIdent
 			TempRefact := ParseToken.(parser.RefactIdent)
@@ -245,7 +247,7 @@ func (Env *Environment) Interpeter() {
 			tempIdent.Value = NewEnv
 			Env.VariableMap[IdentGet.Name] = tempIdent
 		case HouseType:
-			
+
 		}
 	}
 

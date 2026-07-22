@@ -81,12 +81,52 @@ type House struct {
 
 func SearchEnd(Tokens []lexer.Token, pos int) int {
 	End := pos
-	for End+1 < len(Tokens) && Tokens[End].Type != lexer.NEWLINE {
+	for End+1 < len(Tokens) && Tokens[End].Type != lexer.NEWLINE && Tokens[End].Type != lexer.EOF {
 		End++
 	}
 	return End
 }
 
+func ReturnsSepDouble(Tokens []lexer.Token, sep lexer.Token) [][]lexer.Token {
+	TokenSeperation := [][]lexer.Token{}
+	sepPos := 0
+	for pos := 0; pos < len(Tokens); pos++ {
+		if Tokens[pos] == sep {
+			TokenSeperation = append(TokenSeperation, Tokens[sepPos:pos])
+			sepPos = pos + 1
+			continue
+		}
+	}
+	fmt.Println(sepPos)
+	if len(Tokens) >= sepPos {
+		TokenSeperation = append(TokenSeperation, Tokens[sepPos:])
+	}
+	return TokenSeperation
+}
+
+func Equals2Token(FirstToken lexer.Token, SecondToken lexer.Token) bool {
+	return FirstToken.Value == SecondToken.Value && FirstToken.Type == SecondToken.Type
+}
+
+func ReturnsSepOnceTokens(Tokens []lexer.Token, sep lexer.Token) []lexer.Token {
+	TokenSeperation := []lexer.Token{}
+
+	LastToken := Tokens[0]
+	for pos := 0; pos < len(Tokens); pos++ {
+		if Tokens[pos] == sep {
+			TokenSeperation = append(TokenSeperation, LastToken)
+			LastToken.Value = ""
+			LastToken.Value = ""
+			continue
+		}
+		LastToken = Tokens[pos]
+	}
+	if !Equals2Token(LastToken, lexer.Token{Value: "", Type: ""}) {
+		fmt.Println(LastToken)
+		TokenSeperation = append(TokenSeperation, LastToken)
+	}
+	return TokenSeperation
+}
 func Parse(Tokens []lexer.Token) []any {
 	Global_Result := []any{}
 	for pos := 0; pos < len(Tokens); pos++ {
@@ -232,45 +272,28 @@ func Parse(Tokens []lexer.Token) []any {
 			pos = EndLine
 		case "house":
 			house := House{}
-			Vars := []string{}
-			TempValue := ""
+
 			EndLine := SearchEnd(Tokens, pos)
-			for Tokens[pos].Value != "=" {
-				if Tokens[pos].Value == "," && Tokens[pos].Type == lexer.PUNCTUATOR {
-					Vars = append(Vars, TempValue)
-					TempValue = ""
-					pos++
-					continue
-				}
-				TempValue = Tokens[pos].Value
-				pos++
-			}
-			if TempValue != "" {
-				Vars = append(Vars, TempValue)
-			}
+			EqlLocation := pos
 
-			ContentSlice := [][]lexer.Token{}
-			TempContext := []lexer.Token{}
-			for _, value := range Tokens[pos+1 : EndLine+1] {
-				if value.Value == "," {
-					ContentSlice = append(ContentSlice, TempContext)
-					fmt.Println("APPENDED")
-					pos++
-					TempContext = []lexer.Token{}
-					continue
-				}
-
-				TempContext = append(TempContext, value)
-				fmt.Println(TempContext)
+			for !Equals2Token(Tokens[EqlLocation], lexer.Token{Value: "=", Type: lexer.OPERATOR}) {
+				EqlLocation++
 			}
+			VarsTokens := ReturnsSepOnceTokens(Tokens[pos+1:EqlLocation], lexer.Token{Value: ",", Type: lexer.PUNCTUATOR})
 
-			ContentSlice = append(ContentSlice, TempContext)
+			fmt.Println("var: ", VarsTokens)
+			ContentSlice := ReturnsSepDouble(Tokens[EqlLocation+1:EndLine+1], lexer.Token{Value: ",", Type: lexer.PUNCTUATOR})
+			fmt.Println(ContentSlice)
 			TempContextBinding := []any{}
 			for _, context := range ContentSlice {
 				NewExpr := Expretion{Tokens: context}
 				TempContextBinding = append(TempContextBinding, ParseBinding(&NewExpr, 0))
 			}
 			house.Contents = TempContextBinding
+			Vars := []string{}
+			for _, token := range VarsTokens {
+				Vars = append(Vars, token.Value)
+			}
 			house.Names = Vars
 			pos = EndLine
 			Global_Result = append(Global_Result, house)
@@ -283,6 +306,7 @@ func Parse(Tokens []lexer.Token) []any {
 			name := Tokens[pos-1]
 			end := SearchEnd(Tokens, pos)
 			NewEnv := Expretion{Tokens: Tokens[pos+1 : end]}
+			fmt.Println(Tokens[pos+1 : end])
 			contect := ParseBinding(&NewEnv, 0)
 			NewRefactIdent := RefactIdent{Name: name.Value, Content: contect}
 			Global_Result = append(Global_Result, NewRefactIdent)

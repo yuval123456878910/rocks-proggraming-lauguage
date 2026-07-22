@@ -26,6 +26,7 @@ const (
 	UNKOWN     = "unknown"
 	CHAR       = "char"
 	NEWLINE    = "newline"
+	EOF        = "EOF"
 )
 
 var Keywords []string = []string{"func", "import", "int", "string", "float", "var", "const", "list", "dict", "bool", "if", "else", "elseif", "break", "continue", "thread", "return", "maybe", "char", "house"}
@@ -268,4 +269,9 @@ func (l *Lexer) CorrectBackSlash() {
 	l.Input = strings.ReplaceAll(l.Input, `\n`, "\n")
 	l.Input = strings.ReplaceAll(l.Input, `\t`, "\t")
 	l.Input = strings.ReplaceAll(l.Input, `\r`, "\r")
+}
+
+func (l *Lexer) AddEOF() {
+	TempEOF := Token{Value: "", Type: "EOF"}
+	l.Tokens = append(l.Tokens, TempEOF)
 }
