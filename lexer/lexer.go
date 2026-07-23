@@ -56,7 +56,7 @@ func (l *Lexer) Next() {
 }
 
 func IsLetter(digit byte) bool {
-	return digit >= 'a' && digit <= 'z' || digit >= 'A' && digit <= 'Z' && digit == '_'
+	return digit >= 'a' && digit <= 'z' || digit >= 'A' && digit <= 'Z' || digit == '_'
 }
 
 func IsNumber(digit byte) bool {
