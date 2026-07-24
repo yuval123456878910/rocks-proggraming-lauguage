@@ -71,7 +71,7 @@ type Moudle struct {
 }
 
 type Return struct {
-	Expr any
+	Exprs []any
 }
 
 type House struct {
@@ -90,10 +90,19 @@ func SearchEnd(Tokens []lexer.Token, pos int) int {
 func ReturnsSepDouble(Tokens []lexer.Token, sep lexer.Token) [][]lexer.Token {
 	TokenSeperation := [][]lexer.Token{}
 	sepPos := 0
+	Level := 0
 	for pos := 0; pos < len(Tokens); pos++ {
-		if Tokens[pos] == sep {
+		if Tokens[pos] == sep && Level <= 0{
 			TokenSeperation = append(TokenSeperation, Tokens[sepPos:pos])
 			sepPos = pos + 1
+			continue
+		}
+		switch Tokens[pos].Value {
+		case "(", "{", "[":
+			Level++
+			continue
+		case ")", "}", "]":
+			Level--
 			continue
 		}
 	}
@@ -110,15 +119,24 @@ func Equals2Token(FirstToken lexer.Token, SecondToken lexer.Token) bool {
 
 func ReturnsSepOnceTokens(Tokens []lexer.Token, sep lexer.Token) []lexer.Token {
 	TokenSeperation := []lexer.Token{}
-
+	Level := 0
 	LastToken := Tokens[0]
 	for pos := 0; pos < len(Tokens); pos++ {
-		if Tokens[pos] == sep {
+		if Tokens[pos] == sep && Level <= 0 {
 			TokenSeperation = append(TokenSeperation, LastToken)
 			LastToken.Value = ""
 			LastToken.Value = ""
 			continue
 		}
+		switch Tokens[pos].Value {
+		case "(", "{", "[":
+			Level++
+			continue
+		case ")", "}", "]":
+			Level--
+			continue
+		}
+
 		LastToken = Tokens[pos]
 	}
 	if !Equals2Token(LastToken, lexer.Token{Value: "", Type: ""}) {
@@ -265,9 +283,15 @@ func Parse(Tokens []lexer.Token) []any {
 		case "return":
 			fmt.Println("WOW")
 			EndLine := SearchEnd(Tokens, pos)
-			NewExpretion := Expretion{Tokens: Tokens[pos+1 : EndLine]}
 
-			NewReturn := Return{Expr: ParseBinding(&NewExpretion, 0)}
+			Contexts := ReturnsSepDouble(Tokens[pos+1:EndLine], lexer.Token{Value: ",", Type: lexer.PUNCTUATOR})
+			exprs := []any{}
+			for _, value := range Contexts {
+				tempExp := Expretion{Tokens: value}
+				exprs = append(exprs, ParseBinding(&tempExp, 0))
+			}
+
+			NewReturn := Return{Exprs: exprs}
 			Global_Result = append(Global_Result, NewReturn)
 			pos = EndLine
 		case "house":
@@ -392,6 +416,7 @@ func ParseBinding(Express *Expretion, min_bind float32) any {
 	Leftside := any(Express.Tokens[Express.Pos])
 	if Leftside.(lexer.Token).Type == lexer.IDENTIFIER && Express.Pos+1 < len(Express.Tokens) && Express.Tokens[Express.Pos+1].Value == "(" {
 		End, err := FindClose(Express.Tokens, Express.Pos+2, "(", ")")
+		fmt.Println(Express.Tokens)
 		if err != nil {
 			fmt.Println("Error: End of the call funcion wasnt found!")
 		}

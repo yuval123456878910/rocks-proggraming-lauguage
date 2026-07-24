@@ -1,5 +1,5 @@
-func add(float a, float b) (float) {
+func add(int a , int b) (int int) {
     return a+b
 }
 
-var cal_float float = add(add(1.0,3.1),2.2)
+var a int = add(9,10)
