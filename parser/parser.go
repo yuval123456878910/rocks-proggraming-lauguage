@@ -92,7 +92,7 @@ func ReturnsSepDouble(Tokens []lexer.Token, sep lexer.Token) [][]lexer.Token {
 	sepPos := 0
 	Level := 0
 	for pos := 0; pos < len(Tokens); pos++ {
-		if Tokens[pos] == sep && Level <= 0{
+		if Tokens[pos] == sep && Level <= 0 {
 			TokenSeperation = append(TokenSeperation, Tokens[sepPos:pos])
 			sepPos = pos + 1
 			continue
@@ -106,7 +106,6 @@ func ReturnsSepDouble(Tokens []lexer.Token, sep lexer.Token) [][]lexer.Token {
 			continue
 		}
 	}
-	fmt.Println(sepPos)
 	if len(Tokens) >= sepPos {
 		TokenSeperation = append(TokenSeperation, Tokens[sepPos:])
 	}
@@ -140,7 +139,6 @@ func ReturnsSepOnceTokens(Tokens []lexer.Token, sep lexer.Token) []lexer.Token {
 		LastToken = Tokens[pos]
 	}
 	if !Equals2Token(LastToken, lexer.Token{Value: "", Type: ""}) {
-		fmt.Println(LastToken)
 		TokenSeperation = append(TokenSeperation, LastToken)
 	}
 	return TokenSeperation
@@ -149,7 +147,6 @@ func Parse(Tokens []lexer.Token) []any {
 	Global_Result := []any{}
 	for pos := 0; pos < len(Tokens); pos++ {
 		Token := Tokens[pos]
-		fmt.Println(Token)
 		if pos > 0 && Tokens[pos-1].Type == lexer.IDENTIFIER && Token.Value == "(" && Token.Type == lexer.PUNCTUATOR {
 
 			End, err := FindClose(Tokens, pos+1, "(", ")")
@@ -281,7 +278,6 @@ func Parse(Tokens []lexer.Token) []any {
 			Global_Result = append(Global_Result, NewReach)
 			pos = SearchEnd(Tokens, pos)
 		case "return":
-			fmt.Println("WOW")
 			EndLine := SearchEnd(Tokens, pos)
 
 			Contexts := ReturnsSepDouble(Tokens[pos+1:EndLine], lexer.Token{Value: ",", Type: lexer.PUNCTUATOR})
@@ -305,9 +301,7 @@ func Parse(Tokens []lexer.Token) []any {
 			}
 			VarsTokens := ReturnsSepOnceTokens(Tokens[pos+1:EqlLocation], lexer.Token{Value: ",", Type: lexer.PUNCTUATOR})
 
-			fmt.Println("var: ", VarsTokens)
 			ContentSlice := ReturnsSepDouble(Tokens[EqlLocation+1:EndLine+1], lexer.Token{Value: ",", Type: lexer.PUNCTUATOR})
-			fmt.Println(ContentSlice)
 			TempContextBinding := []any{}
 			for _, context := range ContentSlice {
 				NewExpr := Expretion{Tokens: context}
@@ -326,11 +320,9 @@ func Parse(Tokens []lexer.Token) []any {
 			if Tokens[pos].Type != lexer.OPERATOR {
 				continue
 			}
-			fmt.Println("Equals")
 			name := Tokens[pos-1]
 			end := SearchEnd(Tokens, pos)
 			NewEnv := Expretion{Tokens: Tokens[pos+1 : end]}
-			fmt.Println(Tokens[pos+1 : end])
 			contect := ParseBinding(&NewEnv, 0)
 			NewRefactIdent := RefactIdent{Name: name.Value, Content: contect}
 			Global_Result = append(Global_Result, NewRefactIdent)
@@ -416,7 +408,6 @@ func ParseBinding(Express *Expretion, min_bind float32) any {
 	Leftside := any(Express.Tokens[Express.Pos])
 	if Leftside.(lexer.Token).Type == lexer.IDENTIFIER && Express.Pos+1 < len(Express.Tokens) && Express.Tokens[Express.Pos+1].Value == "(" {
 		End, err := FindClose(Express.Tokens, Express.Pos+2, "(", ")")
-		fmt.Println(Express.Tokens)
 		if err != nil {
 			fmt.Println("Error: End of the call funcion wasnt found!")
 		}

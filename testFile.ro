@@ -1,5 +1,6 @@
-func add(int a , int b) (int int) {
-    return a+b
+func some(int a , int b) (int int) {
+    return a+b, a-b
 }
 
-var a int = add(9,10)
+house a,b = some(1,2)
+print(a, b)

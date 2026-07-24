@@ -27,11 +27,28 @@ var (
 	HouseType       string   = ReturnType(parser.House{})
 )
 
+type Keyfunc func(args ...any) ([]any, string)
+
 type Environment struct {
 	FuncMap     map[string]parser.Function
 	VariableMap map[string]Ident
 	ParseDate   []any
 	Output      []any
+	Keyfuncs    map[string]Keyfunc
+}
+
+func NewEnvironment(parseDate []any, funcMap map[string]parser.Function, variableMap map[string]Ident) Environment {
+	TempEnv := Environment{}
+	TempEnv.FuncMap = funcMap
+	TempEnv.VariableMap = variableMap
+	TempEnv.ParseDate = parseDate
+	TempEnv.Keyfuncs = map[string]Keyfunc{}
+	TempEnv.Keyfuncs["print"] = Keyfunc(func(args ...any) ([]any, string) {
+		fmt.Println(args...)
+		return []any{args}, "null"
+	})
+
+	return TempEnv
 }
 
 func ReturnType(obj any) string {
@@ -45,7 +62,7 @@ type Ident struct {
 	IsConst bool
 }
 
-func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser.Function) (any, []string) {
+func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser.Function, keyFuncs map[string]Keyfunc) (any, []string) {
 	var Value any
 	CalType := ReturnType(CalData)
 	switch CalType {
@@ -53,7 +70,6 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 		switch CalData.(lexer.Token).Type {
 		case lexer.LITERAL:
 			value, err := strconv.ParseFloat(CalData.(lexer.Token).Value, 64)
-			print(value, "\n")
 			if err != nil {
 				fmt.Printf("Error converting string to float. Error: %s", err.Error())
 				os.Exit(1)
@@ -76,32 +92,48 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 		CallFunc, ok := funcMap[TempCall.Name]
 		if !ok {
 			fmt.Println("Error, coudnt find the func:", TempCall.Name)
+			os.Exit(1)
+		}
+		_, ok2 := keyFuncs[TempCall.Name]
+		if !ok && !ok2 {
+			fmt.Println("Error, coudnt find the func:", TempCall.Name)
+			os.Exit(1)
 		}
 		CallVarMap := map[string]Ident{}
+		TempValues := []any{}
 		for idx, ident := range TempCall.ParimitersInput {
-			Cal, _ := Evaluate(ident, indentMap, funcMap)
-			CallVarMap[CallFunc.Perameters[idx].Name] = Ident{Value: Cal, Name: CallFunc.Perameters[idx].Name, Type: CallFunc.Perameters[idx].Type, IsConst: false}
+			callEval, _ := Evaluate(ident, indentMap, funcMap, keyFuncs)
+			if ok2 {
+				TempValues = append(TempValues, callEval)
+			} else {
+				CallVarMap[CallFunc.Perameters[idx].Name] = Ident{Value: callEval, Name: CallFunc.Perameters[idx].Name, Type: CallFunc.Perameters[idx].Type, IsConst: false}
+			}
+
+		}
+		if funcData, ok3 := keyFuncs[TempCall.Name]; ok3 {
+			l, t := funcData(TempValues...)
+
+			return l, []string{t}
 		}
 		NewEnv := Environment{ParseDate: CallFunc.Body, VariableMap: CallVarMap, FuncMap: funcMap}
 		NewEnv.Interpeter()
 		Types := []string{}
+
 		for _, value := range CallFunc.Returns {
 			Types = append(Types, value.Type)
 		}
-		fmt.Println("Dude", NewEnv.Output)
 		return NewEnv.Output, Types
 
 	}
 	op, ok := CalData.(parser.Oporation)
 	if !ok {
 		fmt.Println("Cant continue because there is not oporation selected!", CalData)
-		fmt.Printf("%T\n", CalData)
 		os.Exit(1)
 	}
 	switch op.Op {
 	case "+":
-		LeftSide, _ := Evaluate(op.Left, indentMap, funcMap)
-		RightSide, _ := Evaluate(op.Right, indentMap, funcMap)
+		LeftSide, _ := Evaluate(op.Left, indentMap, funcMap, keyFuncs)
+		RightSide, _ := Evaluate(op.Right, indentMap, funcMap, keyFuncs)
 		if !slices.Contains(ApproveSideToOp, ReturnType(LeftSide)) && !slices.Contains(ApproveSideToOp, ReturnType(RightSide)) {
 			fmt.Println("Cant do None type!", ReturnType(LeftSide), ReturnType(RightSide))
 		}
@@ -137,8 +169,8 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 			return left + right, []string{"string"}
 		}
 	case "-":
-		LeftSide, _ := Evaluate(op.Left, indentMap, funcMap)
-		RightSide, _ := Evaluate(op.Right, indentMap, funcMap)
+		LeftSide, _ := Evaluate(op.Left, indentMap, funcMap, keyFuncs)
+		RightSide, _ := Evaluate(op.Right, indentMap, funcMap, keyFuncs)
 		if !slices.Contains(ApproveSideToOp, ReturnType(LeftSide)) && !slices.Contains(ApproveSideToOp, ReturnType(RightSide)) {
 			fmt.Println("Cant do None type!", ReturnType(LeftSide), ReturnType(RightSide))
 		}
@@ -184,14 +216,14 @@ func (Env *Environment) Interpeter() {
 
 		case NewIdentType:
 			IdentTemp := ParseToken.(parser.NewIdent)
-			TempEnv := Environment{VariableMap: Env.VariableMap, FuncMap: Env.FuncMap, ParseDate: []any{IdentTemp.Content}}
+			TempEnv := Environment{VariableMap: Env.VariableMap, FuncMap: Env.FuncMap, ParseDate: []any{IdentTemp.Content}, Keyfuncs: Env.Keyfuncs}
 			TempEnv.Interpeter()
 			NewIdent := Ident{Value: TempEnv.Output[0], Name: IdentTemp.Name, Type: IdentTemp.Type, IsConst: IdentTemp.IsConst}
 			Env.VariableMap[NewIdent.Name] = NewIdent
 
 		case OporationType:
 			OporationTemp := ParseToken.(parser.Oporation)
-			t, _ := Evaluate(OporationTemp, Env.VariableMap, Env.FuncMap)
+			t, _ := Evaluate(OporationTemp, Env.VariableMap, Env.FuncMap, Env.Keyfuncs)
 			Env.Output = append(Env.Output, t)
 
 		case ReturnType(lexer.Token{}):
@@ -205,32 +237,46 @@ func (Env *Environment) Interpeter() {
 				Env.Output = append(Env.Output, val.Value)
 
 			} else {
-				t, _ := Evaluate(ParseToken, Env.VariableMap, Env.FuncMap)
+				t, _ := Evaluate(ParseToken, Env.VariableMap, Env.FuncMap, Env.Keyfuncs)
 				Env.Output = append(Env.Output, t)
 			}
 		case ReturnType(parser.CallFunction{}):
 			TempCall := ParseToken.(parser.CallFunction)
 
 			CallFunc, ok := Env.FuncMap[TempCall.Name]
-			if !ok {
+			_, ok2 := Env.Keyfuncs[TempCall.Name]
+			if !ok && !ok2 {
 				fmt.Println("Error, coudnt find the func:", TempCall.Name)
 				os.Exit(1)
 			}
 			CallVarMap := map[string]Ident{}
+			TempValues := []any{}
 			for idx, ident := range TempCall.ParimitersInput {
-				callEval, _ := Evaluate(ident, Env.VariableMap, Env.FuncMap)
-				CallVarMap[CallFunc.Perameters[idx].Name] = Ident{Value: callEval, Name: CallFunc.Perameters[idx].Name, Type: CallFunc.Perameters[idx].Type, IsConst: false}
+				callEval, _ := Evaluate(ident, Env.VariableMap, Env.FuncMap, Env.Keyfuncs)
+				if ok2 {
+					TempValues = append(TempValues, callEval)
+				} else {
+					CallVarMap[CallFunc.Perameters[idx].Name] = Ident{Value: callEval, Name: CallFunc.Perameters[idx].Name, Type: CallFunc.Perameters[idx].Type, IsConst: false}
+				}
+
 			}
-			NewEnv := Environment{ParseDate: CallFunc.Body, VariableMap: CallVarMap, FuncMap: Env.FuncMap}
+
+			if funcData, ok := Env.Keyfuncs[TempCall.Name]; ok {
+				Env.Output, _ = funcData(TempValues...)
+				return
+			}
+
+			NewEnv := Environment{ParseDate: CallFunc.Body, VariableMap: CallVarMap, FuncMap: Env.FuncMap, Keyfuncs: Env.Keyfuncs}
 			NewEnv.Interpeter()
 			Env.Output = NewEnv.Output
 
 		case ReturnType(parser.Return{}):
 			TempReturn := ParseToken.(parser.Return)
 			for _, expr := range TempReturn.Exprs {
-				ReturnEval, _ := Evaluate(expr, Env.VariableMap, Env.FuncMap)
+				ReturnEval, _ := Evaluate(expr, Env.VariableMap, Env.FuncMap, Env.Keyfuncs)
 				Env.Output = append(Env.Output, ReturnEval)
 			}
+			return
 
 		case RefactType:
 			// dont mess: Env.VariableMap[NewIdent.Name] = NewIdent
@@ -244,7 +290,7 @@ func (Env *Environment) Interpeter() {
 				fmt.Println("Cant edit a const veruble: ", TempRefact.Name)
 				os.Exit(1)
 			}
-			NewEnv, Type := Evaluate(TempRefact.Content, Env.VariableMap, Env.FuncMap)
+			NewEnv, Type := Evaluate(TempRefact.Content, Env.VariableMap, Env.FuncMap, Env.Keyfuncs)
 
 			var tempIdent Ident = Env.VariableMap[IdentGet.Name]
 			if slices.Compare(Type, []string{tempIdent.Type}) == 1 {
@@ -261,7 +307,7 @@ func (Env *Environment) Interpeter() {
 			flattenContexts := []any{}
 			for _, content := range TempHouse.Contents {
 
-				context, typed := Evaluate(content, Env.VariableMap, Env.FuncMap)
+				context, typed := Evaluate(content, Env.VariableMap, Env.FuncMap, Env.Keyfuncs)
 				Contents = append(Contents, context)
 
 				switch contextType := context.(type) {
@@ -280,10 +326,6 @@ func (Env *Environment) Interpeter() {
 			for index := 0; index < len(Names); index++ {
 				Env.VariableMap[Names[index]] = Ident{Value: flattenContexts[index], Type: Types[index], Name: Names[index], IsConst: false}
 			}
-			fmt.Println("House")
-			fmt.Println("Gaven", flattenContexts)
-			fmt.Println(Types)
-			fmt.Println(Names)
 
 		}
 	}
