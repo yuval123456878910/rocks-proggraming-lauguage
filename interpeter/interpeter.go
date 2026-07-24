@@ -197,6 +197,73 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 			os.Exit(1)
 
 		}
+	case "*":
+		LeftSide, _ := Evaluate(op.Left, indentMap, funcMap, keyFuncs)
+		RightSide, _ := Evaluate(op.Right, indentMap, funcMap, keyFuncs)
+		switch left := LeftSide.(type) {
+		case int:
+			integerRight, ok := RightSide.(int)
+			if ok {
+				return integerRight * left, []string{"int"}
+			}
+			floatRight, ok := RightSide.(float64)
+			if ok {
+				return int(floatRight) * left, []string{"int"}
+			}
+			fmt.Println("Cant add two incompadeple types!")
+			os.Exit(1)
+		case float64:
+			integerRight, ok := RightSide.(int)
+			if ok {
+				return float64(integerRight) * left, []string{"int"}
+			}
+			floatRight, ok := RightSide.(float64)
+			if ok {
+				return floatRight * left, []string{"int"}
+			}
+			fmt.Println("Cant add two incompadeple types!")
+			os.Exit(1)
+		case string:
+			integerRight, ok := RightSide.(int)
+			if ok {
+				value := ""
+				for i := 0; i < integerRight; i++ {
+					value += left
+				}
+				return value, []string{"string"}
+			}
+			fmt.Println("Cant add two incompadeple types!")
+			os.Exit(1)
+		}
+	case "/":
+		LeftSide, _ := Evaluate(op.Left, indentMap, funcMap, keyFuncs)
+		RightSide, _ := Evaluate(op.Right, indentMap, funcMap, keyFuncs)
+		if !slices.Contains(ApproveSideToOp, ReturnType(LeftSide)) && !slices.Contains(ApproveSideToOp, ReturnType(RightSide)) {
+			fmt.Println("Cant do None type!", ReturnType(LeftSide), ReturnType(RightSide))
+		}
+		switch left := LeftSide.(type) {
+		case int:
+			right, ok := RightSide.(int)
+			if ok {
+				return left / right, []string{"int"}
+			}
+			right2, ok2 := RightSide.(float64)
+			if ok2 {
+				return left / int(right2), []string{"int"}
+			}
+		case float64:
+			right, ok := RightSide.(int)
+			if ok {
+				return (left) / float64(right), []string{"float"}
+			}
+			right2, ok2 := RightSide.(float64)
+			if ok2 {
+				return left / right2, []string{"float"}
+			}
+			fmt.Println("Cant add two incompadeple types!")
+			os.Exit(1)
+
+		}
 	}
 	return Value, []string{"null"}
 }

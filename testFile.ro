@@ -1,6 +1,1 @@
-func some(int a , int b) (int int) {
-    return a+b, a-b
-}
-
-house a,b = some(1,2)
-print(a, b)
+print("8*4 is", 8*4)
