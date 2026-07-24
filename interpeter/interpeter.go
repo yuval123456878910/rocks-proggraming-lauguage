@@ -44,8 +44,18 @@ func NewEnvironment(parseDate []any, funcMap map[string]parser.Function, variabl
 	TempEnv.ParseDate = parseDate
 	TempEnv.Keyfuncs = map[string]Keyfunc{}
 	TempEnv.Keyfuncs["print"] = Keyfunc(func(args ...any) ([]any, string) {
-		fmt.Println(args...)
-		return []any{args}, "null"
+		for _, arg := range args {
+			switch Targ := arg.(type) {
+			case []any:
+				fmt.Print(Targ...)
+				fmt.Print(" ")
+			default:
+				fmt.Print(arg, " ")
+			}
+
+		}
+		fmt.Println()
+		return args, "null"
 	})
 
 	return TempEnv
@@ -90,10 +100,7 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 		TempCall := CalData.(parser.CallFunction)
 
 		CallFunc, ok := funcMap[TempCall.Name]
-		if !ok {
-			fmt.Println("Error, coudnt find the func:", TempCall.Name)
-			os.Exit(1)
-		}
+
 		_, ok2 := keyFuncs[TempCall.Name]
 		if !ok && !ok2 {
 			fmt.Println("Error, coudnt find the func:", TempCall.Name)
@@ -115,7 +122,7 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 
 			return l, []string{t}
 		}
-		NewEnv := Environment{ParseDate: CallFunc.Body, VariableMap: CallVarMap, FuncMap: funcMap}
+		NewEnv := Environment{ParseDate: CallFunc.Body, VariableMap: CallVarMap, FuncMap: funcMap, Keyfuncs: keyFuncs}
 		NewEnv.Interpeter()
 		Types := []string{}
 
@@ -215,11 +222,11 @@ func Evaluate(CalData any, indentMap map[string]Ident, funcMap map[string]parser
 		case float64:
 			integerRight, ok := RightSide.(int)
 			if ok {
-				return float64(integerRight) * left, []string{"int"}
+				return float64(integerRight) * left, []string{"float"}
 			}
 			floatRight, ok := RightSide.(float64)
 			if ok {
-				return floatRight * left, []string{"int"}
+				return floatRight * left, []string{"float"}
 			}
 			fmt.Println("Cant add two incompadeple types!")
 			os.Exit(1)
@@ -275,7 +282,9 @@ func (Env *Environment) Interpeter() {
 	if Env.FuncMap == nil {
 		Env.FuncMap = map[string]parser.Function{}
 	}
-	for _, ParseToken := range Env.ParseDate {
+	for i := 0; i < len(Env.ParseDate); i++ {
+		ParseToken := Env.ParseDate[i]
+		// fmt.Println(ParseToken)
 		switch ReturnType(ParseToken) {
 		case FuncType:
 			FuncTemp := ParseToken.(parser.Function)
@@ -283,9 +292,9 @@ func (Env *Environment) Interpeter() {
 
 		case NewIdentType:
 			IdentTemp := ParseToken.(parser.NewIdent)
-			TempEnv := Environment{VariableMap: Env.VariableMap, FuncMap: Env.FuncMap, ParseDate: []any{IdentTemp.Content}, Keyfuncs: Env.Keyfuncs}
-			TempEnv.Interpeter()
-			NewIdent := Ident{Value: TempEnv.Output[0], Name: IdentTemp.Name, Type: IdentTemp.Type, IsConst: IdentTemp.IsConst}
+			Result, _ := Evaluate(IdentTemp.Content, Env.VariableMap, Env.FuncMap, Env.Keyfuncs)
+
+			NewIdent := Ident{Value: Result, Name: IdentTemp.Name, Type: IdentTemp.Type, IsConst: IdentTemp.IsConst}
 			Env.VariableMap[NewIdent.Name] = NewIdent
 
 		case OporationType:
@@ -329,13 +338,14 @@ func (Env *Environment) Interpeter() {
 			}
 
 			if funcData, ok := Env.Keyfuncs[TempCall.Name]; ok {
-				Env.Output, _ = funcData(TempValues...)
-				return
+				Result, _ := funcData(TempValues...)
+				Env.Output = append(Env.Output, Result...)
+				continue
 			}
 
 			NewEnv := Environment{ParseDate: CallFunc.Body, VariableMap: CallVarMap, FuncMap: Env.FuncMap, Keyfuncs: Env.Keyfuncs}
 			NewEnv.Interpeter()
-			Env.Output = NewEnv.Output
+			Env.Output = append(Env.Output, NewEnv.Output...)
 
 		case ReturnType(parser.Return{}):
 			TempReturn := ParseToken.(parser.Return)
@@ -360,7 +370,7 @@ func (Env *Environment) Interpeter() {
 			NewEnv, Type := Evaluate(TempRefact.Content, Env.VariableMap, Env.FuncMap, Env.Keyfuncs)
 
 			var tempIdent Ident = Env.VariableMap[IdentGet.Name]
-			if slices.Compare(Type, []string{tempIdent.Type}) == 1 {
+			if !slices.Equal(Type, []string{tempIdent.Type}) {
 				fmt.Println("Cant change a val with incopadble type!")
 				os.Exit(1)
 			}

@@ -1,1 +1,9 @@
-print("8*4 is", 8*4)
+var greeting string = "Hello, Rocks Language!"
+print(greeting)
+
+func add(int a, int b) (int) {
+    return a + b
+}
+
+var result int = add(10, 20)
+print("10 + 20 =", result)
