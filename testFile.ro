@@ -1,9 +1,10 @@
-var greeting string = "Hello, Rocks Language!"
-print(greeting)
-
-func add(int a, int b) (int) {
-    return a + b
+if x
+{
+    var a int = 1
+} elseif x-1
+{
+    var c int = 5
+} else
+{
+    var b int = 2
 }
-
-var result int = add(10, 20)
-print("10 + 20 =", result)
